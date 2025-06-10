@@ -1,0 +1,98 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: sambatv2025
+      POSTGRES_DB: sambatv_ai_platform
+    ports:
+      - "5435:5432"
+    volumes:
+      - simple_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # ClickHouse (Required for Langfuse v3)
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    restart: always
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: sambatv_analytics
+      CLICKHOUSE_USER: sambatv
+      CLICKHOUSE_PASSWORD: sambatv_clickhouse_2025
+    ports:
+      - "8125:8123"
+      - "9003:9000"
+    volumes:
+      - simple_clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # SambaTV AI Platform (Simplified)
+  sambatv-simple:
+    image: langfuse/langfuse:3
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - "3005:3000"  # Access at http://localhost:3005
+    environment:
+      # Database
+      DATABASE_URL: postgresql://postgres:sambatv2025@postgres:5432/sambatv_ai_platform
+      
+      # Security
+      SALT: "sambatv-salt-2025-secure"
+      ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      
+      # Authentication
+      NEXTAUTH_URL: http://localhost:3005
+      NEXTAUTH_SECRET: "sambatv-nextauth-secret-2025-secure"
+      
+      # Google OAuth (disabled for now)
+      # AUTH_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      # AUTH_GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      
+      # SambaTV Branding Customization
+      NEXT_PUBLIC_APP_NAME: "SambaTV AI Platform"
+      NEXT_PUBLIC_PRIMARY_COLOR: "#E50914"  # SambaTV Red
+      NEXT_PUBLIC_LOGO_TEXT: "SambaTV AI Platform"
+      
+      # Organization Setup
+      LANGFUSE_INIT_ORG_ID: "sambatv"
+      LANGFUSE_INIT_ORG_NAME: "SambaTV"
+      LANGFUSE_INIT_PROJECT_ID: "default"
+      LANGFUSE_INIT_PROJECT_NAME: "SambaTV Prompts"
+      
+      # Admin User
+      LANGFUSE_INIT_USER_EMAIL: "admin@samba.tv"
+      LANGFUSE_INIT_USER_NAME: "SambaTV Admin"
+      LANGFUSE_INIT_USER_PASSWORD: "sambatv2025"
+      
+      # Features
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "true"
+      TELEMETRY_ENABLED: "false"
+      
+      # ClickHouse configuration (required in v3)
+      CLICKHOUSE_URL: "http://sambatv:sambatv_clickhouse_2025@clickhouse:8123/sambatv_analytics"
+      CLICKHOUSE_USER: sambatv
+      CLICKHOUSE_PASSWORD: sambatv_clickhouse_2025
+
+volumes:
+  simple_postgres_data:
+  simple_clickhouse_data:
+
+networks:
+  default:
+    name: sambatv-simple-network 

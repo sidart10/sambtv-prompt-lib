@@ -2,11 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Copy, RotateCcw, Beaker, Variable, AlertCircle } from 'lucide-react'
-import { useDebouncedToast } from '@/hooks/use-debounced-toast'
+import { Copy, Beaker, Variable, AlertCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
@@ -35,8 +33,7 @@ import { copyToClipboard } from '@/lib/clipboard'
 export function TemplateVariables({ content, promptId, className, onContentChange, variables, onVariableChange, onVariablesFilled }: TemplateVariablesProps) {
   const [processedContent, setProcessedContent] = useState(content)
   const router = useRouter()
-  const { showToast } = useDebouncedToast()
-  const { toast: showToastToast } = useToast()
+  const { toast } = useToast()
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Extract template variables from content
@@ -178,12 +175,12 @@ export function TemplateVariables({ content, promptId, className, onContentChang
       onSuccess: () => {
         // Only show notification if variables were actually customized
         if (hasFilledVars) {
-          showToastToast({
+          toast({
             title: "Copied!",
             description: "Customized prompt copied to clipboard",
           })
         } else {
-          showToastToast({
+          toast({
             title: "Copied!",
             description: "Prompt copied to clipboard",
           })
@@ -191,7 +188,7 @@ export function TemplateVariables({ content, promptId, className, onContentChang
       },
       onError: (error) => {
         console.error('Template variables copy error:', error)
-        showToastToast({
+        toast({
           title: "Error",
           description: "Failed to copy to clipboard",
           variant: "destructive",
@@ -201,7 +198,7 @@ export function TemplateVariables({ content, promptId, className, onContentChang
     
     // Handle case where utility returns false but doesn't call onError
     if (!success) {
-      showToastToast({
+      toast({
         title: "Error",
         description: "Failed to copy to clipboard",
         variant: "destructive",

@@ -11,6 +11,7 @@ import StagewiseProvider from '@/components/dev/StagewiseProvider';
 import { ThemeProvider } from '@/hooks/use-theme';
 import { StagingBanner } from '@/components/staging/StagingBanner';
 import { SkipLinks, commonSkipLinks } from '@/components/ui/skip-links';
+import { QueryProvider } from '@/components/providers/QueryProvider';
 
 export const metadata: Metadata = config.metadata;
 
@@ -29,16 +30,18 @@ export default function RootLayout({
           className="antialiased min-h-screen flex flex-col transition-colors duration-300"
         >
           <ThemeProvider defaultTheme="system" storageKey="sambatv-theme">
-            {/* Skip navigation links for keyboard users */}
-            <SkipLinks links={commonSkipLinks.default} />
-            
-            <StagingBanner />
-            <Toaster />
-            <StagewiseProvider />
-            <main id="main-content" className="flex-grow" role="main" aria-label="Main content">
-              {children}
-            </main>
-            <FooterWrapper />
+            <QueryProvider>
+              {/* Skip navigation links for keyboard users */}
+              <SkipLinks links={commonSkipLinks.default} />
+              
+              <StagingBanner />
+              <Toaster />
+              <StagewiseProvider />
+              <main id="main-content" className="flex-grow" role="main" aria-label="Main content">
+                {children}
+              </main>
+              <FooterWrapper />
+            </QueryProvider>
           </ThemeProvider>
         </body>
       </SessionProvider>

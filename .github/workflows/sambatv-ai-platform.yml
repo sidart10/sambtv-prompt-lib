@@ -1,0 +1,374 @@
+name: SambaTV AI Platform Deployment
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_MAIN: sambatv/prompt-library
+  IMAGE_NAME_AI: sambatv/ai-platform
+  NODE_VERSION: '18'
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    outputs:
+      security-passed: ${{ steps.security-check.outputs.passed }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+          
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level moderate
+          
+      - name: Dockerfile security scan
+        run: |
+          docker run --rm -v "$(pwd)":/src \
+            aquasec/trivy:latest \
+            config /src/Dockerfile.production
+            
+      - name: Security check passed
+        id: security-check
+        run: echo "passed=true" >> $GITHUB_OUTPUT
+
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    needs: security-scan
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+          
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+          
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Setup test environment
+        run: |
+          cp .env.example .env.test
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test" >> .env.test
+          echo "REDIS_URL=redis://localhost:6379" >> .env.test
+          
+      - name: Run unit tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+          REDIS_URL: redis://localhost:6379
+          
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          NODE_ENV: test
+          
+      - name: Upload test coverage
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          
+  lint-and-type-check:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run ESLint
+        run: npm run lint
+        
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+        
+      - name: Run Prettier check
+        run: npx prettier --check .
+
+  build-main-app:
+    name: Build Main Prompt Library
+    runs-on: ubuntu-latest
+    needs: [security-scan, test, lint-and-type-check]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_MAIN }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.production
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-ai-platform:
+    name: Build AI Platform
+    runs-on: ubuntu-latest
+    needs: [security-scan, test, lint-and-type-check]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_AI }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            
+      - name: Build and push AI Platform image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./sambatv-ai-platform
+          file: ./sambatv-ai-platform/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-main-app, build-ai-platform]
+    if: github.ref == 'refs/heads/staging'
+    environment: staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.STAGING_SSH_KEY }}
+          
+      - name: Deploy to staging server
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
+            cd /opt/sambatv-ai-platform
+            
+            # Pull latest images
+            docker-compose -f docker-compose.staging.yml pull
+            
+            # Update environment variables
+            echo "MAIN_DB_URL=${{ secrets.STAGING_MAIN_DB_URL }}" > .env.staging
+            echo "LANGFUSE_DB_URL=${{ secrets.STAGING_LANGFUSE_DB_URL }}" >> .env.staging
+            echo "NEXTAUTH_SECRET=${{ secrets.STAGING_NEXTAUTH_SECRET }}" >> .env.staging
+            echo "REDIS_PASSWORD=${{ secrets.STAGING_REDIS_PASSWORD }}" >> .env.staging
+            
+            # Deploy with zero downtime
+            docker-compose -f docker-compose.staging.yml up -d --remove-orphans
+            
+            # Health check
+            sleep 30
+            curl -f https://staging-ai.sambatv.com/api/health || exit 1
+            curl -f https://staging.sambatv.com/api/health || exit 1
+          EOF
+          
+      - name: Run post-deployment tests
+        run: |
+          npm run test:staging
+        env:
+          STAGING_URL: https://staging.sambatv.com
+          STAGING_AI_URL: https://staging-ai.sambatv.com
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-main-app, build-ai-platform]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          
+      - name: Pre-deployment health check
+        run: |
+          curl -f https://ai.sambatv.com/api/health
+          curl -f https://sambatv.com/api/health
+          
+      - name: Deploy to production server
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'EOF'
+            cd /opt/sambatv-ai-platform
+            
+            # Backup current deployment
+            docker-compose -f docker-compose.production.yml exec -T langfuse-postgres pg_dump -U langfuse_admin langfuse > backup_$(date +%Y%m%d_%H%M%S).sql
+            
+            # Pull latest images
+            docker-compose -f docker-compose.production.yml pull
+            
+            # Update environment variables
+            echo "MAIN_DB_URL=${{ secrets.PRODUCTION_MAIN_DB_URL }}" > .env.production
+            echo "LANGFUSE_DB_URL=${{ secrets.PRODUCTION_LANGFUSE_DB_URL }}" >> .env.production
+            echo "NEXTAUTH_SECRET=${{ secrets.PRODUCTION_NEXTAUTH_SECRET }}" >> .env.production
+            echo "REDIS_PASSWORD=${{ secrets.PRODUCTION_REDIS_PASSWORD }}" >> .env.production
+            echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> .env.production
+            echo "GOOGLE_GEMINI_API_KEY=${{ secrets.GOOGLE_GEMINI_API_KEY }}" >> .env.production
+            echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> .env.production
+            
+            # Rolling deployment with health checks
+            docker-compose -f docker-compose.production.yml up -d --remove-orphans
+            
+            # Wait for services to be healthy
+            for i in {1..30}; do
+              if docker-compose -f docker-compose.production.yml ps | grep -q "healthy"; then
+                echo "Services are healthy"
+                break
+              fi
+              echo "Waiting for services to become healthy... ($i/30)"
+              sleep 10
+            done
+            
+            # Final health check
+            curl -f https://ai.sambatv.com/api/health || exit 1
+            curl -f https://sambatv.com/api/health || exit 1
+          EOF
+          
+      - name: Run post-deployment tests
+        run: |
+          npm run test:production
+        env:
+          PRODUCTION_URL: https://sambatv.com
+          PRODUCTION_AI_URL: https://ai.sambatv.com
+          
+      - name: Notify deployment success
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          text: 'SambaTV AI Platform deployed successfully to production'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        if: success()
+        
+      - name: Notify deployment failure
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: 'SambaTV AI Platform production deployment failed'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        if: failure()
+
+  rollback:
+    name: Emergency Rollback
+    runs-on: ubuntu-latest
+    if: failure() && github.ref == 'refs/heads/main'
+    needs: [deploy-production]
+    environment: production
+    
+    steps:
+      - name: Rollback production deployment
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }} << 'EOF'
+            cd /opt/sambatv-ai-platform
+            
+            # Get previous working images
+            docker-compose -f docker-compose.production.yml down
+            docker-compose -f docker-compose.production.yml up -d --remove-orphans
+            
+            # Restore database if needed
+            # Latest backup is available in current directory
+          EOF

@@ -186,7 +186,7 @@ export default async function PromptDetailPage({ params }: { params: Promise<{ i
                 )}
                 <TestInAIPlatformButton
                   promptContent={prompt.content}
-                  promptId={promptId}
+                  promptId={promptId.toString()}
                   className="w-full sm:w-auto"
                 />
               </div>

@@ -1,0 +1,131 @@
+# Prometheus Configuration for SambaTV AI Platform
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'sambatv-ai-platform'
+    environment: '${ENVIRONMENT:-production}'
+
+rule_files:
+  - "rules/*.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Main Prompt Library Application
+  - job_name: 'prompt-library'
+    static_configs:
+      - targets: ['prompt-library:3000']
+    metrics_path: '/api/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # AI Platform (Langfuse)
+  - job_name: 'ai-platform'
+    static_configs:
+      - targets: ['ai-platform:3000']
+    metrics_path: '/api/health'
+    scrape_interval: 30s
+    scrape_timeout: 15s
+
+  # PostgreSQL (Main Database)
+  - job_name: 'postgres-main'
+    static_configs:
+      - targets: ['postgres:5432']
+    scrape_interval: 60s
+
+  # PostgreSQL (Langfuse Database - Task 6)
+  - job_name: 'postgres-langfuse'
+    static_configs:
+      - targets: ['langfuse-postgres:5432']
+    scrape_interval: 60s
+
+  # Redis Cache
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 30s
+
+  # MinIO Object Storage
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['minio:9000']
+    metrics_path: '/minio/v2/metrics/cluster'
+    scrape_interval: 30s
+
+  # Nginx Load Balancer
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:80']
+    metrics_path: '/nginx_status'
+    scrape_interval: 30s
+
+  # Node Exporter (System Metrics)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+
+  # Docker Container Metrics
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s
+
+  # SSL Certificate Monitoring (Task 11)
+  - job_name: 'ssl-certificates'
+    static_configs:
+      - targets: ['ai.sambatv.com:443']
+    metrics_path: '/probe'
+    params:
+      module: [http_2xx]
+    scrape_interval: 300s  # Check every 5 minutes
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # API Endpoint Health Monitoring
+  - job_name: 'api-health'
+    static_configs:
+      - targets:
+        - 'ai.sambatv.com'
+        - 'sambatv.com'
+    metrics_path: '/api/health'
+    scheme: https
+    scrape_interval: 60s
+    scrape_timeout: 30s
+
+  # Langfuse Integration Endpoints (Agent B's APIs)
+  - job_name: 'langfuse-integration'
+    static_configs:
+      - targets: ['prompt-library:3000']
+    metrics_path: '/api/langfuse/health'
+    scrape_interval: 60s
+
+# Storage and retention
+storage:
+  tsdb:
+    path: /prometheus
+    retention.time: 30d
+    retention.size: 10GB
+
+# Remote write (for external monitoring services)
+# remote_write:
+#   - url: "https://prometheus-remote-write-endpoint"
+#     basic_auth:
+#       username: monitoring
+#       password_file: /etc/prometheus/remote_write_password

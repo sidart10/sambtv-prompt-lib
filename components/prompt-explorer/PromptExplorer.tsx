@@ -19,6 +19,7 @@ import Navigation from '@/components/navigation/Navigation';
 import config from "@/config";
 import { PromptCopyButton } from "@/components/prompt-copy-button";
 import { FavoriteButton } from "@/components/favorite-button";
+import { TestInAIPlatformButton } from "@/components/test-in-ai-platform-button";
 import SignIn from "@/components/sign-in";
 import { LazyLoad } from "@/components/ui/lazy-load";
 import { useDebounce } from "@/lib/mobile-performance";
@@ -533,24 +534,33 @@ function PromptCard({ prompt, user, featured = false }: { prompt: any; user: any
             </div>
           </div>
           
-          <div className="mt-3 pt-3 border-t flex items-center justify-between">
-            <div className="text-sm">
-              <p className="font-medium text-foreground">
-                by {
-                  prompt.profiles?.username ||
-                  prompt.profiles?.name || 
-                  prompt.profiles?.email?.split('@')[0] ||
-                  'Anonymous'
-                }
-              </p>
+          <div className="mt-3 pt-3 border-t">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm">
+                <p className="font-medium text-foreground">
+                  by {
+                    prompt.profiles?.username ||
+                    prompt.profiles?.name || 
+                    prompt.profiles?.email?.split('@')[0] ||
+                    'Anonymous'
+                  }
+                </p>
+              </div>
+              <PromptCopyButton
+                promptId={prompt.id}
+                text={prompt.content || ''}
+                label=""
+                variant="ghost"
+                className="text-primary touch-scale"
+              />
             </div>
-            <PromptCopyButton
-              promptId={prompt.id}
-              text={prompt.content || ''}
-              label=""
-              variant="ghost"
-              className="text-primary touch-scale"
-            />
+            <div className="flex gap-2">
+              <TestInAIPlatformButton
+                promptId={prompt.id.toString()}
+                promptContent={prompt.content || ''}
+                className="flex-1 text-xs"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>

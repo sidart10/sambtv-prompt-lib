@@ -1,0 +1,67 @@
+version: '3.8'
+
+# Task 6: Dedicated Langfuse PostgreSQL Database
+# Separate from main infrastructure for proper isolation
+
+services:
+  # Dedicated PostgreSQL for Langfuse (Task 6)
+  langfuse-postgres:
+    image: postgres:15-alpine
+    container_name: langfuse-database
+    environment:
+      POSTGRES_DB: langfuse
+      POSTGRES_USER: langfuse_admin
+      POSTGRES_PASSWORD: ${LANGFUSE_DB_PASSWORD:-langfuse_secure_admin_password}
+      # Performance tuning for tracing workloads
+      POSTGRES_INITDB_ARGS: "--auth-local=trust --auth-host=md5"
+      POSTGRES_MAX_CONNECTIONS: 200
+      POSTGRES_SHARED_BUFFERS: 256MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 1GB
+    ports:
+      - "5433:5432"  # Different port from main DB (5432)
+    volumes:
+      - langfuse_db_data:/var/lib/postgresql/data
+      - ./langfuse-init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse_admin -d langfuse"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - langfuse-network
+    labels:
+      - "com.sambatv.service=langfuse-database"
+      - "com.sambatv.environment=production"
+
+  # PostgreSQL Admin Interface for Langfuse DB
+  langfuse-pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: langfuse-db-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@sambatv.com
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-pgadmin_secure_password}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "8081:80"  # Different port from main pgAdmin (8080)
+    volumes:
+      - langfuse_pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      langfuse-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - langfuse-network
+
+volumes:
+  langfuse_db_data:
+    name: langfuse-database-data
+  langfuse_pgadmin_data:
+    name: langfuse-pgadmin-data
+
+networks:
+  langfuse-network:
+    external: true

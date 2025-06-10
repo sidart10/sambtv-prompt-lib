@@ -19,8 +19,8 @@ const authConfig = {
 				params: {
 					prompt: "consent",
 					access_type: "offline",
-					response_type: "code"
-					// Removed hd restriction to allow all Google accounts
+					response_type: "code",
+					hd: "samba.tv" // Only allow @samba.tv domain accounts
 				}
 			}
 		}),
@@ -34,7 +34,10 @@ const authConfig = {
 	}),
 	callbacks: {
 		async signIn({ user, account, profile }) {
-			// Allow all users to sign in (they will be created with 'member' role by default)
+			// Only allow @samba.tv domain accounts
+			if (user.email && !user.email.endsWith('@samba.tv')) {
+				return false; // Deny sign-in
+			}
 			
 			// Track analytics for user sign-in
 			try {

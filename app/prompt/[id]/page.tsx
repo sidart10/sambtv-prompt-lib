@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Heart, Share2, Flag, Edit, MessageSquare, GitFork, Lightbulb, Copy, ExternalLink, Beaker } from "lucide-react";
+import { ArrowLeft, Heart, Share2, Flag, Edit, MessageSquare, GitFork, Lightbulb, Copy, Beaker } from "lucide-react";
 import Navigation from "@/components/navigation/Navigation";
 import UserMenu from "@/components/user/UserMenu";
 import SignIn from "@/components/sign-in";
@@ -23,6 +23,8 @@ import { SimpleMarkdown } from "@/components/simple-markdown";
 import { PromptContentSection } from "@/components/prompt-content-section";
 import { ForkBadge } from "@/components/fork-badge";
 import { PromptDescriptionSection } from "@/components/prompt-description-section";
+import { TestInAIPlatformButton } from "@/components/test-in-ai-platform-button";
+import { PromptEvaluationDisplay } from "@/components/prompt-evaluation-display";
 
 export default async function PromptDetailPage({ params }: { params: Promise<{ id: string }> }) {
   try {
@@ -182,12 +184,20 @@ export default async function PromptDetailPage({ params }: { params: Promise<{ i
                     className="w-full sm:w-auto"
                   />
                 )}
+                <TestInAIPlatformButton
+                  promptContent={prompt.content}
+                  promptId={promptId}
+                  className="w-full sm:w-auto"
+                />
               </div>
             </div>
           </div>
 
           {/* Description Section - Collapsible */}
           <PromptDescriptionSection description={prompt.description} />
+
+          {/* Evaluation Analytics - Shows if data available */}
+          <PromptEvaluationDisplay promptId={promptId} />
 
           {/* Prompt Content Section - Client Component */}
           <PromptContentSection 

@@ -1,0 +1,36 @@
+version: '3.8'
+
+# ClickHouse addition for Langfuse v3
+
+services:
+  # ClickHouse for Langfuse analytics
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.3-alpine
+    container_name: langfuse-clickhouse
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: langfuse
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse_secure_password}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "8123:8123"
+      - "9002:9000"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - langfuse-network
+
+volumes:
+  clickhouse-data:
+    name: langfuse-clickhouse-data
+
+networks:
+  langfuse-network:
+    external: true

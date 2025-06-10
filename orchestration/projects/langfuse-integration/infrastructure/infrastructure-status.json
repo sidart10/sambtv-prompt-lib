@@ -1,0 +1,32 @@
+{
+  "status": "ready",
+  "services": {
+    "postgres": "running",
+    "redis": "running",
+    "minio": "running"
+  },
+  "ports": {
+    "postgres": 5432,
+    "redis": 6379,
+    "minio_api": 9000,
+    "minio_console": 9001
+  },
+  "containers": {
+    "postgres": "langfuse-postgres",
+    "redis": "langfuse-redis", 
+    "minio": "langfuse-minio"
+  },
+  "timestamp": "2025-06-10T07:04:00Z",
+  "agent": "Agent C",
+  "taskmaster_status": "26.2 - COMPLETED",
+  "environment": {
+    "docker_network": "langfuse-network",
+    "volumes": [
+      "langfuse-postgres-data",
+      "langfuse-redis-data", 
+      "langfuse-minio-data"
+    ],
+    "env_configured": true,
+    "api_keys_configured": true
+  }
+} 

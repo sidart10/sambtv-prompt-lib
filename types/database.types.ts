@@ -592,6 +592,149 @@ export type Database = {
           },
         ]
       }
+      langfuse_traces: {
+        Row: {
+          id: string
+          trace_id: string
+          session_id: string | null
+          user_id: string | null
+          prompt_id: number | null
+          name: string
+          input: Json | null
+          output: Json | null
+          metadata: Json | null
+          model: string | null
+          start_time: string
+          end_time: string | null
+          duration_ms: number | null
+          prompt_tokens: number | null
+          completion_tokens: number | null
+          total_tokens: number | null
+          cost_usd: number | null
+          status: string
+          error: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          trace_id: string
+          session_id?: string | null
+          user_id?: string | null
+          prompt_id?: number | null
+          name: string
+          input?: Json | null
+          output?: Json | null
+          metadata?: Json | null
+          model?: string | null
+          start_time: string
+          end_time?: string | null
+          duration_ms?: number | null
+          prompt_tokens?: number | null
+          completion_tokens?: number | null
+          total_tokens?: number | null
+          cost_usd?: number | null
+          status?: string
+          error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          trace_id?: string
+          session_id?: string | null
+          user_id?: string | null
+          prompt_id?: number | null
+          name?: string
+          input?: Json | null
+          output?: Json | null
+          metadata?: Json | null
+          model?: string | null
+          start_time?: string
+          end_time?: string | null
+          duration_ms?: number | null
+          prompt_tokens?: number | null
+          completion_tokens?: number | null
+          total_tokens?: number | null
+          cost_usd?: number | null
+          status?: string
+          error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "langfuse_traces_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "langfuse_traces_prompt_id_fkey"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "prompt"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback: {
+        Row: {
+          id: number
+          user_id: string | null
+          email: string | null
+          feedback_type: string
+          title: string
+          content: string
+          page_url: string | null
+          user_agent: string | null
+          status: string
+          priority: string | null
+          metadata: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: never
+          user_id?: string | null
+          email?: string | null
+          feedback_type?: string
+          title: string
+          content: string
+          page_url?: string | null
+          user_agent?: string | null
+          status?: string
+          priority?: string | null
+          metadata?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: never
+          user_id?: string | null
+          email?: string | null
+          feedback_type?: string
+          title?: string
+          content?: string
+          page_url?: string | null
+          user_agent?: string | null
+          status?: string
+          priority?: string | null
+          metadata?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  Langfuse Integration Progress Report Template
+  Agents should save as: agent-[A/B/C]-langfuse-progress-[timestamp].xml
+-->
+<langfuse_progress agent="[A/B/C]" wave="[1-4]" timestamp="[ISO_8601]">
+  
+  <!-- Current Wave Status -->
+  <wave_status>
+    <current_wave>1-4</current_wave>
+    <wave_name>Foundation|Customization|Integration|Production</wave_name>
+    <overall_progress>0-100%</overall_progress>
+  </wave_status>
+  
+  <!-- Completed Tasks -->
+  <completed_tasks>
+    <task>
+      <description>What you completed</description>
+      <time_taken>Actual hours</time_taken>
+      <files_modified>
+        <file>path/to/file</file>
+      </files_modified>
+    </task>
+    <!-- Add more completed tasks -->
+  </completed_tasks>
+  
+  <!-- Current Activity -->
+  <current_activity>
+    <task>What you're working on right now</task>
+    <started_at>ISO_8601</started_at>
+    <expected_completion>ISO_8601</expected_completion>
+    <blockers>Any blockers or none</blockers>
+  </current_activity>
+  
+  <!-- Integration Points -->
+  <integration_status>
+    <item status="pending|completed|blocked">
+      <description>Integration task description</description>
+      <depends_on_agent>A|B|C if applicable</depends_on_agent>
+    </item>
+  </integration_status>
+  
+  <!-- Next Steps -->
+  <next_steps>
+    <step priority="high|medium|low">Next task description</step>
+    <!-- Add more steps -->
+  </next_steps>
+  
+  <!-- Issues/Questions -->
+  <issues>
+    <issue severity="high|medium|low">
+      <description>Issue description</description>
+      <needs_help_from>Agent or Orchestrator</needs_help_from>
+    </issue>
+  </issues>
+  
+  <!-- For Agent A: Branding Checklist -->
+  <branding_status>
+    <item status="done|pending">Logo replacement</item>
+    <item status="done|pending">Color scheme update</item>
+    <item status="done|pending">App name changes</item>
+    <item status="done|pending">Remove Langfuse references</item>
+  </branding_status>
+  
+  <!-- For Agent B: Auth/Model Status -->
+  <backend_status>
+    <auth_configured>yes|no</auth_configured>
+    <models_configured>list configured models</models_configured>
+    <session_sharing>working|pending|issues</session_sharing>
+  </backend_status>
+  
+  <!-- For Agent C: Deployment Status -->
+  <deployment_status>
+    <local_env>running|issues|not-started</local_env>
+    <staging>deployed|pending|not-started</staging>
+    <production>deployed|pending|not-started</production>
+    <domain_configured>yes|no</domain_configured>
+  </deployment_status>
+  
+</langfuse_progress>

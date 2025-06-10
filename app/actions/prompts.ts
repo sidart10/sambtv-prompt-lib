@@ -833,7 +833,7 @@ export async function createPrompt(input: z.infer<typeof createPromptSchema>) {
     if (error) {
       throw new Error(`Failed to create prompt: ${error.message}`)
     }
-
+    
     // Track prompt creation analytics
     try {
       const { Analytics } = await import('@/lib/analytics')
@@ -1258,7 +1258,7 @@ export async function toggleFavorite(promptId: number) {
       } catch (analyticsError) {
         console.error('Failed to track unfavorite analytics:', analyticsError)
       }
-
+      
       // Revalidate caches
       revalidateAfterFavorite(promptId, session.user.id)
       
@@ -1285,7 +1285,7 @@ export async function toggleFavorite(promptId: number) {
       } catch (analyticsError) {
         console.error('Failed to track favorite analytics:', analyticsError)
       }
-
+      
       // Revalidate caches
       revalidateAfterFavorite(promptId, session.user.id)
       

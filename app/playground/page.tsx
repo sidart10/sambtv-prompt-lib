@@ -49,6 +49,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Wand2, History } from "lucide-react";
+import { StructuredOutputDisplay } from '@/components/playground/StructuredOutputDisplay';
+import { StreamingDisplay, useStreaming } from '@/components/playground/StreamingDisplay';
+import { parseOutput } from '@/lib/outputParser';
 
 interface Message {
   id: string;
@@ -97,6 +100,16 @@ function PlaygroundContent() {
   const [estimatedTokens, setEstimatedTokens] = useState(0);
   const [showModelPreferences, setShowModelPreferences] = useState(false);
   const [variablesFilled, setVariablesFilled] = useState(false);
+  const [streamingMode, setStreamingMode] = useState(false);
+  const [structuredOutputMode, setStructuredOutputMode] = useState(false);
+  const [lastResponse, setLastResponse] = useState('');
+  const [streamingContent, setStreamingContent] = useState('');
+  const [streamingMetrics, setStreamingMetrics] = useState<{
+    totalTokens: number;
+    tokensPerSecond: number;
+    elapsed: number;
+  } | undefined>(undefined);
+  const { isStreaming, isPaused, startStream, pauseStream, resumeStream, stopStream } = useStreaming();
 
   // Model preferences
   const { getFilteredModels, loading: modelPrefsLoading, preferences } = useModelPreferences();
@@ -356,7 +369,7 @@ function PlaygroundContent() {
     return processed;
   };
 
-  // Send message
+  // Send message (supports both streaming and regular generation)
   const handleSendMessage = async () => {
     if (!inputText.trim()) {
       toast({
@@ -388,11 +401,100 @@ function PlaygroundContent() {
     setLoading(true);
     setError('');
 
+    const processedPrompt = processPromptWithVariables(inputText);
+    const processedSystemPrompt = processPromptWithVariables(systemPrompt);
+
     try {
-      const processedPrompt = processPromptWithVariables(inputText);
-      const processedSystemPrompt = processPromptWithVariables(systemPrompt); // Use clean text
-      
-      const response = await fetch('/api/playground/generate', {
+      if (streamingMode) {
+        // Use streaming API
+        await handleStreamingGeneration(processedPrompt, processedSystemPrompt);
+      } else {
+        // Use regular API
+        await handleRegularGeneration(processedPrompt, processedSystemPrompt);
+      }
+    } catch (error) {
+      console.error('[Playground] Generation error:', error);
+      setError(error instanceof Error ? error.message : 'An error occurred');
+      toast({
+        title: "Generation Failed",
+        description: error instanceof Error ? error.message : 'An error occurred',
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Regular generation (existing functionality)
+  const handleRegularGeneration = async (processedPrompt: string, processedSystemPrompt: string) => {
+    const response = await fetch('/api/playground/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: processedPrompt,
+        systemPrompt: processedSystemPrompt,
+        model: selectedModel,
+        parameters: {
+          temperature,
+          maxTokens,
+          topP,
+          frequencyPenalty,
+          presencePenalty,
+        },
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to generate output');
+    }
+
+    const assistantMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: data.output,
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => [...prev, assistantMessage]);
+    setLastResponse(data.output);
+    console.log('[Playground] Generation successful');
+  };
+
+  // Streaming generation using Server-Sent Events
+  const handleStreamingGeneration = async (processedPrompt: string, processedSystemPrompt: string) => {
+    return new Promise((resolve, reject) => {
+      const eventSource = new EventSource(
+        '/api/playground/stream',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            prompt: processedPrompt,
+            systemPrompt: processedSystemPrompt,
+            model: selectedModel,
+            parameters: {
+              temperature,
+              maxTokens,
+              topP,
+              frequencyPenalty,
+              presencePenalty,
+            },
+            structuredOutput: {
+              enabled: structuredOutputMode,
+              format: 'auto'
+            }
+          }),
+        } as any
+      );
+
+      // Use fetch with SSE for streaming
+      fetch('/api/playground/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -408,35 +510,117 @@ function PlaygroundContent() {
             frequencyPenalty,
             presencePenalty,
           },
+          structuredOutput: {
+            enabled: structuredOutputMode,
+            format: 'auto'
+          }
         }),
-      });
+      }).then(response => {
+        if (!response.ok) {
+          throw new Error('Streaming request failed');
+        }
 
-      const data = await response.json();
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('No stream reader available');
+        }
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate output');
-      }
+        let fullContent = '';
+        let tokenCount = 0;
+        const startTime = Date.now();
+        const assistantMessageId = (Date.now() + 1).toString();
 
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data.output,
-        timestamp: new Date(),
-      };
+        const readStream = async () => {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
 
-      setMessages(prev => [...prev, assistantMessage]);
-      console.log('[Playground] Generation successful');
-    } catch (error) {
-      console.error('[Playground] Generation error:', error);
-      setError(error instanceof Error ? error.message : 'An error occurred');
-      toast({
-        title: "Generation Failed",
-        description: error instanceof Error ? error.message : 'An error occurred',
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+              const chunk = new TextDecoder().decode(value);
+              const lines = chunk.split('\n');
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  try {
+                    const eventData = JSON.parse(line.slice(6));
+                    
+                    switch (eventData.type) {
+                      case 'connected':
+                        console.log('[Streaming] Connected to', eventData.data.model);
+                        setStreamingContent('');
+                        setStreamingMetrics({
+                          totalTokens: 0,
+                          tokensPerSecond: 0,
+                          elapsed: 0
+                        });
+                        break;
+                      
+                      case 'token':
+                        fullContent = eventData.data.partial || fullContent;
+                        tokenCount = eventData.data.tokenCount || tokenCount + 1;
+                        
+                        // Update streaming display content and metrics
+                        setStreamingContent(fullContent);
+                        const elapsed = (Date.now() - startTime) / 1000;
+                        setStreamingMetrics({
+                          totalTokens: tokenCount,
+                          tokensPerSecond: elapsed > 0 ? tokenCount / elapsed : 0,
+                          elapsed
+                        });
+                        
+                        // Update or create the assistant message
+                        setMessages(prev => {
+                          const existing = prev.find(m => m.id === assistantMessageId);
+                          if (existing) {
+                            return prev.map(m => 
+                              m.id === assistantMessageId 
+                                ? { ...m, content: fullContent }
+                                : m
+                            );
+                          } else {
+                            return [...prev, {
+                              id: assistantMessageId,
+                              role: 'assistant' as const,
+                              content: fullContent,
+                              timestamp: new Date(),
+                            }];
+                          }
+                        });
+                        break;
+                      
+                      case 'structured':
+                        setLastResponse(eventData.data.raw);
+                        break;
+                      
+                      case 'complete':
+                        setLastResponse(eventData.data.content);
+                        setStreamingContent('');
+                        setStreamingMetrics(undefined);
+                        console.log('[Streaming] Complete:', eventData.data);
+                        resolve(eventData.data);
+                        return;
+                      
+                      case 'error':
+                        setStreamingContent('');
+                        setStreamingMetrics(undefined);
+                        throw new Error(eventData.data.error);
+                    }
+                  } catch (parseError) {
+                    console.error('[Streaming] Failed to parse event:', parseError);
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            setStreamingContent('');
+            setStreamingMetrics(undefined);
+            reject(error);
+          }
+        };
+
+        readStream();
+      }).catch(reject);
+    });
   };
 
   // Handle keyboard shortcut
@@ -735,6 +919,30 @@ function PlaygroundContent() {
                   </div>
                 </div>
 
+                {/* Advanced Features Displays */}
+                {(streamingMode || structuredOutputMode) && (
+                  <div className="border-t border-border bg-muted/10">
+                    <div className="px-3 sm:px-6 py-4 space-y-4">
+                      {/* Streaming Display */}
+                      {streamingMode && (
+                        <StreamingDisplay
+                          isStreaming={isStreaming}
+                          content={streamingContent}
+                          metrics={streamingMetrics}
+                          onPause={pauseStream}
+                          onResume={resumeStream}
+                          onStop={stopStream}
+                        />
+                      )}
+                      
+                      {/* Structured Output Display */}
+                      {structuredOutputMode && lastResponse && (
+                        <StructuredOutputDisplay content={lastResponse} />
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Error Alert */}
                 {error && (
                   <div className="border-t border-border bg-muted/30">
@@ -1016,6 +1224,73 @@ function PlaygroundContent() {
                               </div>
                             </div>
                           ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="advanced-features" className="border border-border rounded-lg bg-card shadow-sm">
+                      <AccordionTrigger className="px-3 sm:px-4 py-2.5 sm:py-3 hover:no-underline hover:bg-muted/50 rounded-t-lg touch-manipulation">
+                        <div className="flex items-center gap-2">
+                          <Wand2 className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                          <span className="font-semibold text-sm sm:text-base">Advanced Features</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-3 sm:px-4 pb-3 sm:pb-4">
+                        <div className="space-y-4">
+                          {/* Streaming Mode */}
+                          <div className="flex items-center justify-between space-x-2">
+                            <div className="space-y-1">
+                              <Label htmlFor="streaming-mode" className="text-xs font-medium text-muted-foreground">
+                                Real-time Streaming
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                See responses generate token by token
+                              </p>
+                            </div>
+                            <Switch
+                              id="streaming-mode"
+                              checked={streamingMode}
+                              onCheckedChange={setStreamingMode}
+                              disabled={loading || isStreaming}
+                            />
+                          </div>
+
+                          {/* Structured Output Mode */}
+                          <div className="flex items-center justify-between space-x-2">
+                            <div className="space-y-1">
+                              <Label htmlFor="structured-output" className="text-xs font-medium text-muted-foreground">
+                                Structured Output
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                Enhanced parsing for JSON, XML formats
+                              </p>
+                            </div>
+                            <Switch
+                              id="structured-output"
+                              checked={structuredOutputMode}
+                              onCheckedChange={setStructuredOutputMode}
+                            />
+                          </div>
+
+                          {/* Output Format Selection */}
+                          {structuredOutputMode && (
+                            <div className="space-y-2 pt-2 border-t border-border">
+                              <Label className="text-xs font-medium text-muted-foreground">
+                                Preferred Output Format
+                              </Label>
+                              <Select defaultValue="auto">
+                                <SelectTrigger className="w-full text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="auto">Auto-detect</SelectItem>
+                                  <SelectItem value="json">JSON</SelectItem>
+                                  <SelectItem value="xml">XML</SelectItem>
+                                  <SelectItem value="markdown">Markdown</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
                         </div>
                       </AccordionContent>
                     </AccordionItem>

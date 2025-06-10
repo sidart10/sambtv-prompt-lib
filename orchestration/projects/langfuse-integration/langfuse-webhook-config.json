@@ -1,0 +1,40 @@
+{
+  "webhooks": {
+    "usage": {
+      "url": "https://prompts.sambatv.com/api/langfuse/usage-webhook",
+      "events": ["generation.completed", "generation.failed"],
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Langfuse-Source": "sambatv-ai-platform"
+      }
+    },
+    "traces": {
+      "url": "https://prompts.sambatv.com/api/langfuse/traces",
+      "events": ["trace.created", "trace.updated"],
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    },
+    "evaluations": {
+      "url": "https://prompts.sambatv.com/api/langfuse/sync",
+      "events": ["score.created", "score.updated"],
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    }
+  },
+  "auth": {
+    "sessionEndpoint": "https://prompts.sambatv.com/api/langfuse/session",
+    "sharedSecret": "i24xRNq7qtxsRqNndBIBLK7Au64SzkSdjDf4z3QD4/M=",
+    "domain": "samba.tv"
+  },
+  "dataSync": {
+    "syncInterval": 300,
+    "batchSize": 100,
+    "endpoints": {
+      "prompts": "https://prompts.sambatv.com/api/langfuse/prompts",
+      "analytics": "https://prompts.sambatv.com/api/langfuse/analytics",
+      "health": "https://prompts.sambatv.com/api/langfuse/health"
+    }
+  }
+}

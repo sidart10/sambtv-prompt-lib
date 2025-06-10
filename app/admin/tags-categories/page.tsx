@@ -286,7 +286,7 @@ export default function TagsCategoriesManagementPage() {
           </Button>
         </div>
 
-        <Card>
+      <Card>
           <CardContent className="pt-6">
                       <Tabs defaultValue="categories" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
@@ -649,7 +649,7 @@ export default function TagsCategoriesManagementPage() {
               </TabsContent>
             </Tabs>
           </CardContent>
-        </Card>
+      </Card>
       </div>
     </div>
   )

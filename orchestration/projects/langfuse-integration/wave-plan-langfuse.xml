@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<langfuse_integration_plan>
+  <meta>
+    <project>SambaTV AI Platform (Langfuse Fork)</project>
+    <approach>Fork and White-label</approach>
+    <timeline>1-2 Days</timeline>
+    <agents>
+      <agent id="A" role="Frontend/UI - White-labeling"/>
+      <agent id="B" role="Backend/API - Auth & Integration"/>
+      <agent id="C" role="Infrastructure - Deployment"/>
+      <agent id="O" role="Orchestrator - Coordination"/>
+    </agents>
+  </meta>
+
+  <!-- WAVE 1: Fork & Setup (2 hours) -->
+  <wave number="1" name="Foundation" duration="2h">
+    <objectives>
+      <objective>Fork Langfuse repository</objective>
+      <objective>Set up development environments</objective>
+      <objective>Understand codebase structure</objective>
+    </objectives>
+    
+    <agent_tasks>
+      <agent_a>
+        <task priority="high">Fork Langfuse repository</task>
+        <task priority="high">Clone and install dependencies</task>
+        <task priority="high">Identify all UI files needing branding changes</task>
+        <task priority="medium">List all logo/image assets to replace</task>
+        <task priority="medium">Find theme configuration files</task>
+      </agent_a>
+      
+      <agent_b>
+        <task priority="high">Fork Langfuse repository</task>
+        <task priority="high">Review authentication implementation</task>
+        <task priority="high">Identify model provider configuration</task>
+        <task priority="medium">Plan API integration points</task>
+        <task priority="medium">Review database schema</task>
+      </agent_b>
+      
+      <agent_c>
+        <task priority="high">Fork Langfuse repository</task>
+        <task priority="high">Set up PostgreSQL database locally</task>
+        <task priority="high">Configure Docker development environment</task>
+        <task priority="medium">Test local deployment</task>
+        <task priority="medium">Plan production infrastructure</task>
+      </agent_c>
+    </agent_tasks>
+    
+    <integration_checkpoint>
+      <check>All agents have working local environment</check>
+      <check>Database migrations successful</check>
+      <check>Development server running</check>
+    </integration_checkpoint>
+  </wave>
+
+  <!-- WAVE 2: White-label & Configure (4 hours) -->
+  <wave number="2" name="Customization" duration="4h">
+    <objectives>
+      <objective>Complete white-label branding</objective>
+      <objective>Configure authentication</objective>
+      <objective>Set up model integrations</objective>
+    </objectives>
+    
+    <agent_tasks>
+      <agent_a>
+        <task priority="high">Replace Langfuse logo with SambaTV logo</task>
+        <task priority="high">Update color scheme to SambaTV red (#E50914)</task>
+        <task priority="high">Change app name throughout codebase</task>
+        <task priority="high">Update favicon and meta tags</task>
+        <task priority="medium">Modify email templates</task>
+        <task priority="medium">Update loading screens</task>
+        <deliverables>
+          <file>packages/web/public/logo.svg</file>
+          <file>packages/web/src/styles/globals.css</file>
+          <file>packages/web/src/constants/index.ts</file>
+        </deliverables>
+      </agent_a>
+      
+      <agent_b>
+        <task priority="high">Configure Google OAuth with existing credentials</task>
+        <task priority="high">Implement @samba.tv domain restriction</task>
+        <task priority="high">Set up model API configurations</task>
+        <task priority="high">Configure pricing for each model</task>
+        <task priority="medium">Create shared session logic</task>
+        <task priority="medium">Test authentication flow</task>
+        <deliverables>
+          <file>packages/web/src/server/auth.ts</file>
+          <file>packages/shared/src/server/llm/providers.ts</file>
+          <file>.env.local</file>
+        </deliverables>
+      </agent_b>
+      
+      <agent_c>
+        <task priority="high">Create production Docker configuration</task>
+        <task priority="high">Set up environment variable management</task>
+        <task priority="medium">Configure Nginx reverse proxy</task>
+        <task priority="medium">Prepare SSL certificate setup</task>
+        <deliverables>
+          <file>docker-compose.yml</file>
+          <file>Dockerfile</file>
+          <file>nginx.conf</file>
+        </deliverables>
+      </agent_c>
+    </agent_tasks>
+    
+    <integration_checkpoint>
+      <check>Branding completely replaced</check>
+      <check>Auth works with @samba.tv emails</check>
+      <check>Models configured and pricing set</check>
+      <check>Docker build successful</check>
+    </integration_checkpoint>
+  </wave>
+
+  <!-- WAVE 3: Integration Points (3 hours) -->
+  <wave number="3" name="Integration" duration="3h">
+    <objectives>
+      <objective>Connect main app to Langfuse</objective>
+      <objective>Implement data flow</objective>
+      <objective>Test end-to-end</objective>
+    </objectives>
+    
+    <agent_tasks>
+      <agent_a>
+        <task priority="high">Add "Test in AI Platform" button to prompt cards</task>
+        <task priority="high">Create evaluation score display component</task>
+        <task priority="high">Add navigation link to AI Platform</task>
+        <task priority="medium">Ensure consistent header/footer</task>
+        <task priority="medium">Test responsive design</task>
+        <deliverables>
+          <file>components/prompt-card.tsx</file>
+          <file>components/navigation/Navigation.tsx</file>
+          <file>components/evaluation-score.tsx</file>
+        </deliverables>
+      </agent_a>
+      
+      <agent_b>
+        <task priority="high">Create linking table in Supabase</task>
+        <task priority="high">Build API endpoints for trace storage</task>
+        <task priority="high">Implement evaluation data fetching</task>
+        <task priority="high">Configure CORS for cross-origin requests</task>
+        <task priority="medium">Add error handling</task>
+        <deliverables>
+          <file>app/api/langfuse/traces/route.ts</file>
+          <file>supabase/migrations/add_langfuse_traces.sql</file>
+          <file>lib/langfuse/client.ts</file>
+        </deliverables>
+      </agent_b>
+      
+      <agent_c>
+        <task priority="high">Deploy to staging environment</task>
+        <task priority="high">Configure subdomain (ai.sambatv.com)</task>
+        <task priority="high">Set up SSL certificates</task>
+        <task priority="medium">Configure monitoring</task>
+        <task priority="medium">Set up backup strategy</task>
+        <deliverables>
+          <file>/etc/nginx/sites-available/ai.sambatv.com</file>
+          <file>deployment/staging.env</file>
+        </deliverables>
+      </agent_c>
+    </agent_tasks>
+    
+    <integration_checkpoint>
+      <check>Can navigate from prompt to Langfuse playground</check>
+      <check>Prompt content pre-fills in playground</check>
+      <check>Evaluation scores display in main app</check>
+      <check>Staging deployment accessible</check>
+    </integration_checkpoint>
+  </wave>
+
+  <!-- WAVE 4: Production & Polish (3 hours) -->
+  <wave number="4" name="Production" duration="3h">
+    <objectives>
+      <objective>Deploy to production</objective>
+      <objective>Final testing and validation</objective>
+      <objective>Documentation and training</objective>
+    </objectives>
+    
+    <agent_tasks>
+      <agent_a>
+        <task priority="high">Final UI polish and testing</task>
+        <task priority="high">Create user guide screenshots</task>
+        <task priority="medium">Test all user flows</task>
+        <task priority="medium">Verify mobile responsiveness</task>
+      </agent_a>
+      
+      <agent_b>
+        <task priority="high">Production data migration</task>
+        <task priority="high">Performance optimization</task>
+        <task priority="high">Security audit</task>
+        <task priority="medium">API documentation</task>
+      </agent_b>
+      
+      <agent_c>
+        <task priority="high">Production deployment</task>
+        <task priority="high">DNS configuration</task>
+        <task priority="high">Enable monitoring and alerts</task>
+        <task priority="high">Verify backups working</task>
+        <task priority="medium">Load testing</task>
+      </agent_c>
+    </agent_tasks>
+    
+    <integration_checkpoint>
+      <check>Production deployment live</check>
+      <check>All features working end-to-end</check>
+      <check>Monitoring active</check>
+      <check>Documentation complete</check>
+    </integration_checkpoint>
+  </wave>
+
+  <!-- Success Criteria -->
+  <success_criteria>
+    <criterion priority="high">Langfuse deployed with full SambaTV branding</criterion>
+    <criterion priority="high">Single sign-on working seamlessly</criterion>
+    <criterion priority="high">Users can test prompts in AI Platform</criterion>
+    <criterion priority="high">Evaluation data flows back to main app</criterion>
+    <criterion priority="medium">Performance meets targets (&lt;2s load time)</criterion>
+    <criterion priority="medium">All models configured with correct pricing</criterion>
+    <criterion priority="low">Team trained on new features</criterion>
+  </success_criteria>
+
+  <!-- Risk Management -->
+  <risks>
+    <risk level="high">
+      <description>Authentication session sharing issues</description>
+      <mitigation>Use shared Redis session store if needed</mitigation>
+    </risk>
+    <risk level="medium">
+      <description>CORS blocking cross-origin requests</description>
+      <mitigation>Properly configure CORS headers in both apps</mitigation>
+    </risk>
+    <risk level="low">
+      <description>Some Langfuse branding missed</description>
+      <mitigation>Systematic search for "Langfuse" string</mitigation>
+    </risk>
+  </risks>
+
+  <!-- Communication Plan -->
+  <communication>
+    <checkpoint time="Every 2 hours">
+      <action>All agents report progress</action>
+      <action>Identify and resolve blockers</action>
+      <action>Adjust timeline if needed</action>
+    </checkpoint>
+    <escalation>
+      <trigger>Any agent blocked for >30 minutes</trigger>
+      <action>Orchestrator intervenes immediately</action>
+    </escalation>
+  </communication>
+</langfuse_integration_plan>

@@ -106,6 +106,8 @@ The application uses SambaTV's brand colors:
 - Primary: #E60000 (SambaTV Red)
 - Text on Primary: #FFFFFF (White)
 
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/sidart10/sambtv-prompt-lib?utm_source=oss&utm_medium=github&utm_campaign=sidart10%2Fsambtv-prompt-lib&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+
 ## 📄 License
 
 This is an internal SambaTV project and is not licensed for external use.

@@ -80,6 +80,15 @@ export default function Navigation() {
                         </Button>
                       </Link>
                     </li>
+                    {session?.user && (
+                      <li role="none">
+                        <Link href="/traces" aria-label="AI Trace Analytics">
+                          <Button variant="ghost" className="text-base font-medium h-10 px-4" role="menuitem">
+                            Analytics
+                          </Button>
+                        </Link>
+                      </li>
+                    )}
                   </>
                 )}
               </ul>

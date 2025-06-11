@@ -1,0 +1,123 @@
+version: '3.8'
+
+services:
+  # AI Platform (Agent A's customized Langfuse fork)
+  ai-platform:
+    image: langfuse/langfuse:latest
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:sambatv2025@langfuse-postgres:5432/sambatv_ai_platform
+      - NEXTAUTH_URL=http://localhost:3004
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-sambatv-nextauth-secret-2025-secure}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_AUTH=sambatv_redis_2025
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_GEMINI_API_KEY=${GOOGLE_GEMINI_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=${MINIO_ACCESS_KEY:-sambatv}
+      - S3_SECRET_KEY=${MINIO_SECRET_KEY:-sambatv_minio_2025}
+      - S3_BUCKET_NAME=sambatv
+      - LANGFUSE_S3_EVENT_UPLOAD_BUCKET=sambatv
+      - LANGFUSE_S3_EVENT_UPLOAD_REGION=us-east-1
+      - LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID=${MINIO_ACCESS_KEY:-sambatv}
+      - LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY=${MINIO_SECRET_KEY:-sambatv_minio_2025}
+      - LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://minio:9000
+      - LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE=true
+      - TELEMETRY_ENABLED=false
+      - SALT=sambatv-salt-2025-secure
+      - ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000
+    ports:
+      - "3004:3000"
+    depends_on:
+      - langfuse-postgres
+      - redis
+      - minio
+    networks:
+      - sambatv-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 90s
+    
+  # Dedicated Langfuse PostgreSQL Database
+  langfuse-postgres:
+    image: postgres:15-alpine
+    container_name: langfuse-database
+    environment:
+      POSTGRES_DB: sambatv_ai_platform
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: sambatv2025
+      POSTGRES_MAX_CONNECTIONS: 200
+      POSTGRES_SHARED_BUFFERS: 256MB
+    volumes:
+      - langfuse_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - sambatv-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sambatv_ai_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass sambatv_redis_2025
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - sambatv-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "sambatv_redis_2025", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO S3-Compatible Storage
+  minio:
+    image: minio/minio:latest
+    entrypoint: sh
+    command: -c 'mkdir -p /data/sambatv && minio server --address ":9000" --console-address ":9001" /data'
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    environment:
+      MINIO_ROOT_USER: sambatv
+      MINIO_ROOT_PASSWORD: sambatv_minio_2025
+    networks:
+      - sambatv-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+volumes:
+  langfuse_data:
+    driver: local
+  redis-data:
+    driver: local
+  minio-data:
+    driver: local
+
+networks:
+  sambatv-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1

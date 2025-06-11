@@ -1,0 +1,232 @@
+# SambaTV AI Platform Alert Rules
+# Task 13: Comprehensive Monitoring & Alerts
+# Agent C Implementation
+
+groups:
+  # Critical Service Availability Alerts
+  - name: ai_platform_critical
+    interval: 30s
+    rules:
+      # Service Down Alerts
+      - alert: ServiceDown
+        expr: up{job=~"prompt-library|ai-platform|langfuse-integration"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+          component: service
+        annotations:
+          summary: "Service {{ $labels.job }} on {{ $labels.instance }} is down"
+          description: "The {{ $labels.job }} service has been down for more than 2 minutes."
+          runbook_url: "https://docs.sambatv.com/runbooks/service-down"
+
+      # Database Connection Alerts
+      - alert: DatabaseConnectionFailure
+        expr: up{job=~"postgres-main|postgres-langfuse"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          component: database
+        annotations:
+          summary: "Database {{ $labels.job }} is unreachable"
+          description: "Cannot connect to {{ $labels.job }}. Immediate action required."
+          runbook_url: "https://docs.sambatv.com/runbooks/database-connection"
+
+      # SSL Certificate Expiry
+      - alert: SSLCertificateExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 7 * 24 * 3600
+        for: 1h
+        labels:
+          severity: warning
+          team: platform
+          component: security
+        annotations:
+          summary: "SSL certificate expiring in {{ $value | humanizeDuration }}"
+          description: "SSL certificate for {{ $labels.instance }} will expire soon."
+          runbook_url: "https://docs.sambatv.com/runbooks/ssl-renewal"
+
+  # Performance and Resource Alerts
+  - name: ai_platform_performance
+    interval: 30s
+    rules:
+      # High Response Time
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: performance
+        annotations:
+          summary: "High response time on {{ $labels.job }}"
+          description: "95th percentile response time is {{ $value }}s (threshold: 2s)"
+          runbook_url: "https://docs.sambatv.com/runbooks/high-response-time"
+
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: application
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "Error rate is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+          runbook_url: "https://docs.sambatv.com/runbooks/high-error-rate"
+
+      # Container Memory Usage
+      - alert: ContainerHighMemoryUsage
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: resources
+        annotations:
+          summary: "Container {{ $labels.container_name }} memory usage > 90%"
+          description: "Memory usage is {{ $value | humanizePercentage }} of limit"
+          runbook_url: "https://docs.sambatv.com/runbooks/container-memory"
+
+      # Container CPU Usage
+      - alert: ContainerHighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total[5m]) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: resources
+        annotations:
+          summary: "Container {{ $labels.container_name }} CPU usage > 90%"
+          description: "CPU usage is {{ $value | humanizePercentage }}"
+          runbook_url: "https://docs.sambatv.com/runbooks/container-cpu"
+
+  # AI Platform Specific Alerts
+  - name: ai_platform_business
+    interval: 60s
+    rules:
+      # High AI Token Usage Cost
+      - alert: HighAITokenCost
+        expr: sum(rate(ai_token_cost_total[1h])) > 100
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          component: cost
+        annotations:
+          summary: "AI token costs exceeding ${{ $value }}/hour"
+          description: "Current AI usage cost is ${{ $value }}/hour (threshold: $100/hour)"
+          runbook_url: "https://docs.sambatv.com/runbooks/ai-cost-control"
+
+      # AI Model Provider Failures
+      - alert: AIModelProviderFailure
+        expr: rate(ai_model_request_failures_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          component: ai
+        annotations:
+          summary: "High failure rate for {{ $labels.provider }} {{ $labels.model }}"
+          description: "AI model {{ $labels.model }} failing at {{ $value | humanizePercentage }} rate"
+          runbook_url: "https://docs.sambatv.com/runbooks/ai-provider-failure"
+
+      # Tracing System Overload
+      - alert: TracingSystemOverload
+        expr: active_traces_count > 10000
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: tracing
+        annotations:
+          summary: "Tracing system has {{ $value }} active traces"
+          description: "High number of active traces may impact performance"
+          runbook_url: "https://docs.sambatv.com/runbooks/tracing-overload"
+
+  # Infrastructure Alerts
+  - name: ai_platform_infrastructure
+    interval: 30s
+    rules:
+      # Disk Space Low
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: infrastructure
+          component: storage
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining"
+          runbook_url: "https://docs.sambatv.com/runbooks/disk-space"
+
+      # Redis Memory Usage
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: cache
+        annotations:
+          summary: "Redis memory usage at {{ $value | humanizePercentage }}"
+          description: "Redis is using {{ $value | humanizePercentage }} of available memory"
+          runbook_url: "https://docs.sambatv.com/runbooks/redis-memory"
+
+      # Database Connection Pool Exhaustion
+      - alert: DatabaseConnectionPoolExhausted
+        expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: database
+        annotations:
+          summary: "Database connection pool {{ $value | humanizePercentage }} full"
+          description: "{{ $labels.datname }} using {{ $value | humanizePercentage }} of max connections"
+          runbook_url: "https://docs.sambatv.com/runbooks/db-connections"
+
+      # Load Balancer Health
+      - alert: NginxUpstreamUnhealthy
+        expr: nginx_upstream_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+          component: loadbalancer
+        annotations:
+          summary: "Nginx upstream {{ $labels.upstream }} is down"
+          description: "All servers in upstream {{ $labels.upstream }} are unhealthy"
+          runbook_url: "https://docs.sambatv.com/runbooks/nginx-upstream"
+
+  # Security and Compliance Alerts
+  - name: ai_platform_security
+    interval: 60s
+    rules:
+      # Unauthorized Access Attempts
+      - alert: UnauthorizedAccessAttempts
+        expr: rate(http_requests_total{status="401"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+          component: authentication
+        annotations:
+          summary: "High rate of unauthorized access attempts"
+          description: "{{ $value }} unauthorized requests per second on {{ $labels.instance }}"
+          runbook_url: "https://docs.sambatv.com/runbooks/unauthorized-access"
+
+      # Rate Limit Exceeded
+      - alert: RateLimitExceeded
+        expr: rate(rate_limit_exceeded_total[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          component: ratelimit
+        annotations:
+          summary: "Rate limits being exceeded frequently"
+          description: "{{ $value }} rate limit violations per second"
+          runbook_url: "https://docs.sambatv.com/runbooks/rate-limits"

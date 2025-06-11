@@ -29,8 +29,9 @@ export function TestInAIPlatformButton({
     try {
       setIsLoading(true);
       
-      // Build URL for local SambaTV AI Platform (Langfuse fork)
-      const aiPlatformUrl = new URL('http://localhost:3003/project/default-project/playground');
+      // Build URL for local SambaTV AI Platform (Langfuse fork)  
+      const aiPlatformUrl = new URL('http://localhost:3002');
+      // Add prompt data as URL params for easy access
       aiPlatformUrl.searchParams.set('prompt', encodeURIComponent(promptContent));
       aiPlatformUrl.searchParams.set('promptId', promptId);
       aiPlatformUrl.searchParams.set('model', defaultModel);
@@ -48,8 +49,8 @@ export function TestInAIPlatformButton({
       }
 
       toast({
-        title: "Opening AI Platform",
-        description: "Redirecting to SambaTV AI Platform with your prompt",
+        title: "Opening SambaTV AI Platform",
+        description: "Navigate to the Playground to test your prompt with the provided data",
       });
       
     } catch (error) {

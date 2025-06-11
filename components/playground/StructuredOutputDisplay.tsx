@@ -17,7 +17,7 @@ import {
   FileText,
   AlertTriangle 
 } from 'lucide-react';
-import { parseOutput, ParsedOutput } from '@/lib/outputParser';
+import { parseOutputMain as parseOutput, ParsedOutput } from '@/lib/outputParser';
 import { useToast } from '@/hooks/use-toast';
 
 interface StructuredOutputDisplayProps {

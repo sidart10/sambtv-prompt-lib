@@ -157,8 +157,9 @@ export function formatJson(data: any): string {
 
 /**
  * Main parser function that handles various output formats
+ * Used internally for component compatibility
  */
-export function parseOutput(text: string): ParsedOutput {
+export function parseOutputMain(text: string): ParsedOutput {
   const format = detectStructuredFormat(text);
   const errors: string[] = [];
   
@@ -252,3 +253,105 @@ export function validateJsonSchema(data: any, schema: any): { valid: boolean; er
   
   return { valid: errors.length === 0, errors };
 }
+
+/**
+ * YAML parsing support
+ */
+export function tryParseYaml(text: string): { success: boolean; data?: any; error?: string } {
+  try {
+    // Simple YAML parser for basic key-value pairs
+    const lines = text.trim().split('\n');
+    const result: any = {};
+    
+    for (const line of lines) {
+      const colonIndex = line.indexOf(':');
+      if (colonIndex > 0) {
+        const key = line.substring(0, colonIndex).trim();
+        const value = line.substring(colonIndex + 1).trim();
+        
+        // Try to parse value type
+        if (value === 'true' || value === 'false') {
+          result[key] = value === 'true';
+        } else if (!isNaN(Number(value))) {
+          result[key] = Number(value);
+        } else {
+          result[key] = value;
+        }
+      }
+    }
+    
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: 'Failed to parse YAML' };
+  }
+}
+
+/**
+ * Wrapper function for tests and streaming API compatibility
+ * Provides the expected API with format parameter
+ */
+export function parseOutput(text: string, format?: 'json' | 'xml' | 'yaml' | 'markdown' | 'auto'): {
+  success: boolean;
+  data?: any;
+  format?: string;
+  error?: string;
+  raw?: string;
+} {
+  // Use the main parseOutput function if no format specified
+  if (!format || format === 'auto') {
+    const result = parseOutputMain(text);
+    return {
+      success: result.isStructured,
+      data: result.data,
+      format: result.type,
+      raw: text
+    };
+  }
+  
+  // Handle specific format parsing
+  switch (format) {
+    case 'json': {
+      const result = tryParseJson(text);
+      return {
+        ...result,
+        format: 'json',
+        raw: text
+      };
+    }
+    
+    case 'xml': {
+      const result = tryParseXml(text);
+      return {
+        ...result,
+        format: 'xml',
+        raw: text
+      };
+    }
+    
+    case 'yaml': {
+      const result = tryParseYaml(text);
+      return {
+        ...result,
+        format: 'yaml',
+        raw: text
+      };
+    }
+    
+    case 'markdown': {
+      return {
+        success: true,
+        data: text,
+        format: 'markdown',
+        raw: text
+      };
+    }
+    
+    default:
+      return {
+        success: false,
+        error: `Unsupported format: ${format}`,
+        raw: text
+      };
+  }
+}
+

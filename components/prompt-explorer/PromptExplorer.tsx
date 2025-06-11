@@ -19,7 +19,7 @@ import Navigation from '@/components/navigation/Navigation';
 import config from "@/config";
 import { PromptCopyButton } from "@/components/prompt-copy-button";
 import { FavoriteButton } from "@/components/favorite-button";
-import { TestInAIPlatformButton } from "@/components/test-in-ai-platform-button";
+
 import SignIn from "@/components/sign-in";
 import { LazyLoad } from "@/components/ui/lazy-load";
 import { useDebounce } from "@/lib/mobile-performance";
@@ -554,13 +554,7 @@ function PromptCard({ prompt, user, featured = false }: { prompt: any; user: any
                 className="text-primary touch-scale"
               />
             </div>
-            <div className="flex gap-2">
-              <TestInAIPlatformButton
-                promptId={prompt.id.toString()}
-                promptContent={prompt.content || ''}
-                className="flex-1 text-xs"
-              />
-            </div>
+
           </div>
         </CardContent>
       </Card>

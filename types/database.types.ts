@@ -238,6 +238,9 @@ export type Database = {
           user_id: string
           uses: number
           votes: number
+          average_evaluation_score: number | null
+          evaluation_count: number
+          last_evaluated_at: string | null
         }
         Insert: {
           category_id?: number | null
@@ -253,6 +256,9 @@ export type Database = {
           user_id?: string
           uses?: number
           votes?: number
+          average_evaluation_score?: number | null
+          evaluation_count?: number
+          last_evaluated_at?: string | null
         }
         Update: {
           category_id?: number | null
@@ -268,6 +274,9 @@ export type Database = {
           user_id?: string
           uses?: number
           votes?: number
+          average_evaluation_score?: number | null
+          evaluation_count?: number
+          last_evaluated_at?: string | null
         }
         Relationships: [
           {
@@ -731,6 +740,328 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prompt_evaluations: {
+        Row: {
+          id: string
+          prompt_id: string
+          user_id: string
+          evaluator_id: string
+          score: number
+          reasoning: string
+          metadata: Json
+          request_data: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          prompt_id: string
+          user_id: string
+          evaluator_id: string
+          score: number
+          reasoning: string
+          metadata?: Json
+          request_data?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          prompt_id?: string
+          user_id?: string
+          evaluator_id?: string
+          score?: number
+          reasoning?: string
+          metadata?: Json
+          request_data?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_evaluations_prompt_id_fkey"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "prompts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prompt_evaluations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prompt_comparisons: {
+        Row: {
+          id: string
+          prompt_id: string
+          user_id: string
+          variant_a_id: string
+          variant_b_id: string
+          winner: 'A' | 'B' | 'tie'
+          confidence: number
+          evaluator_results: Json
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          prompt_id: string
+          user_id: string
+          variant_a_id: string
+          variant_b_id: string
+          winner?: 'A' | 'B' | 'tie'
+          confidence?: number
+          evaluator_results?: Json
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          prompt_id?: string
+          user_id?: string
+          variant_a_id?: string
+          variant_b_id?: string
+          winner?: 'A' | 'B' | 'tie'
+          confidence?: number
+          evaluator_results?: Json
+          metadata?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_comparisons_prompt_id_fkey"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "prompts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prompt_comparisons_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usage_analytics_daily: {
+        Row: {
+          id: string
+          date: string
+          user_id: string
+          model_id: string
+          source: string
+          total_requests: number
+          successful_requests: number
+          failed_requests: number
+          total_input_tokens: number
+          total_output_tokens: number
+          total_tokens: number
+          total_input_cost: number
+          total_output_cost: number
+          total_cost: number
+          avg_duration_ms: number | null
+          avg_first_token_latency_ms: number | null
+          avg_tokens_per_second: number | null
+          p95_duration_ms: number | null
+          p95_latency_ms: number | null
+          avg_quality_score: number | null
+          avg_evaluation_score: number | null
+          streaming_requests: number
+          structured_output_requests: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          date: string
+          user_id: string
+          model_id: string
+          source: string
+          total_requests?: number
+          successful_requests?: number
+          failed_requests?: number
+          total_input_tokens?: number
+          total_output_tokens?: number
+          total_tokens?: number
+          total_input_cost?: number
+          total_output_cost?: number
+          total_cost?: number
+          avg_duration_ms?: number | null
+          avg_first_token_latency_ms?: number | null
+          avg_tokens_per_second?: number | null
+          p95_duration_ms?: number | null
+          p95_latency_ms?: number | null
+          avg_quality_score?: number | null
+          avg_evaluation_score?: number | null
+          streaming_requests?: number
+          structured_output_requests?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          date?: string
+          user_id?: string
+          model_id?: string
+          source?: string
+          total_requests?: number
+          successful_requests?: number
+          failed_requests?: number
+          total_input_tokens?: number
+          total_output_tokens?: number
+          total_tokens?: number
+          total_input_cost?: number
+          total_output_cost?: number
+          total_cost?: number
+          avg_duration_ms?: number | null
+          avg_first_token_latency_ms?: number | null
+          avg_tokens_per_second?: number | null
+          p95_duration_ms?: number | null
+          p95_latency_ms?: number | null
+          avg_quality_score?: number | null
+          avg_evaluation_score?: number | null
+          streaming_requests?: number
+          structured_output_requests?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_analytics_daily_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cost_analysis_summary: {
+        Row: {
+          id: string
+          period_type: string
+          period_start: string
+          period_end: string
+          total_cost: number
+          total_requests: number
+          total_tokens: number
+          model_costs: Json
+          user_costs: Json
+          department_costs: Json
+          cost_change_percentage: number | null
+          cost_forecast: number | null
+          optimization_recommendations: Json
+          potential_savings: number | null
+          top_users: Json
+          top_prompts: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          period_type: string
+          period_start: string
+          period_end: string
+          total_cost?: number
+          total_requests?: number
+          total_tokens?: number
+          model_costs?: Json
+          user_costs?: Json
+          department_costs?: Json
+          cost_change_percentage?: number | null
+          cost_forecast?: number | null
+          optimization_recommendations?: Json
+          potential_savings?: number | null
+          top_users?: Json
+          top_prompts?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          period_type?: string
+          period_start?: string
+          period_end?: string
+          total_cost?: number
+          total_requests?: number
+          total_tokens?: number
+          model_costs?: Json
+          user_costs?: Json
+          department_costs?: Json
+          cost_change_percentage?: number | null
+          cost_forecast?: number | null
+          optimization_recommendations?: Json
+          potential_savings?: number | null
+          top_users?: Json
+          top_prompts?: Json
+          created_at?: string
+        }
+        Relationships: []
+      }
+      analytics_export_queue: {
+        Row: {
+          id: string
+          user_id: string
+          export_type: string
+          report_type: string
+          date_range_start: string
+          date_range_end: string
+          filters: Json
+          status: string
+          progress: number | null
+          file_url: string | null
+          file_size_bytes: number | null
+          error_message: string | null
+          created_at: string
+          started_at: string | null
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          export_type: string
+          report_type: string
+          date_range_start: string
+          date_range_end: string
+          filters?: Json
+          status?: string
+          progress?: number | null
+          file_url?: string | null
+          file_size_bytes?: number | null
+          error_message?: string | null
+          created_at?: string
+          started_at?: string | null
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          export_type?: string
+          report_type?: string
+          date_range_start?: string
+          date_range_end?: string
+          filters?: Json
+          status?: string
+          progress?: number | null
+          file_url?: string | null
+          file_size_bytes?: number | null
+          error_message?: string | null
+          created_at?: string
+          started_at?: string | null
+          completed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_export_queue_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

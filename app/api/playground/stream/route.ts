@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { z } from 'zod';
 import { aiClient } from '@/lib/ai';
@@ -7,6 +7,7 @@ import { calculateModelCost } from '@/lib/ai-cost-utils';
 import { trackPlaygroundExecution, isLangfuseEnabled } from '@/lib/langfuse/client';
 import { TraceService } from '@/lib/tracing/service';
 import { TraceManager } from '@/lib/tracing/context';
+import { streamingLimiter } from '@/lib/rate-limiter';
 
 // Schema for streaming request
 const streamRequestSchema = z.object({
@@ -41,8 +42,27 @@ export async function POST(request: NextRequest) {
   try {
     // Check authentication
     const session = await auth();
-    if (!session) {
+    if (!session?.user?.email) {
       return new Response('Authentication required', { status: 401 });
+    }
+
+    // Apply rate limiting
+    const rateLimitResult = streamingLimiter.check(session.user.email);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { 
+          error: 'Rate limit exceeded. Please try again later.',
+          retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
+        },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': rateLimitResult.resetTime.toString(),
+            'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString()
+          }
+        }
+      );
     }
 
     // Parse and validate request
@@ -521,6 +541,8 @@ export async function POST(request: NextRequest) {
         'Access-Control-Allow-Methods': 'POST',
         'Access-Control-Allow-Headers': 'Content-Type',
         'X-Trace-ID': currentTrace?.traceId || '', // Include trace ID in headers
+        'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+        'X-RateLimit-Reset': rateLimitResult.resetTime.toString(),
       },
     });
 

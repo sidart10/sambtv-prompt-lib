@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Menu, X, Home, Search, Plus, User, LogOut, Beaker, Shield } from 'lucide-react';
+import { Menu, X, Home, Search, Plus, User, LogOut, Beaker, Shield, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSession, signOut } from 'next-auth/react';
 import SignIn from '@/components/sign-in';
@@ -200,12 +200,20 @@ export default function MobileNavigation() {
                   </Button>
                 </Link>
                 {session?.user && (
-                  <Link href="/submit" onClick={closeMenu}>
-                    <Button variant="ghost" className="w-full justify-start">
-                      <Plus className="h-4 w-4 mr-3" />
-                      Create Prompt
-                    </Button>
-                  </Link>
+                  <>
+                    <Link href="/submit" onClick={closeMenu}>
+                      <Button variant="ghost" className="w-full justify-start">
+                        <Plus className="h-4 w-4 mr-3" />
+                        Create Prompt
+                      </Button>
+                    </Link>
+                    <Link href="/traces" onClick={closeMenu}>
+                      <Button variant="ghost" className="w-full justify-start">
+                        <BarChart3 className="h-4 w-4 mr-3" />
+                        Analytics
+                      </Button>
+                    </Link>
+                  </>
                 )}
                 {session?.user && isAdmin && (
                   <Link href="/admin" onClick={closeMenu}>

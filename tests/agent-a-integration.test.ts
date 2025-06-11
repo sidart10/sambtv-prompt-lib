@@ -3,7 +3,7 @@
  * Tests streaming API and structured output functionality
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 // Mock authentication for testing
 const mockSession = {
@@ -15,8 +15,8 @@ const mockSession = {
 };
 
 // Mock auth function
-jest.mock('@/lib/auth', () => ({
-  auth: jest.fn().mockResolvedValue(mockSession)
+vi.mock('@/lib/auth', () => ({
+  auth: vi.fn().mockResolvedValue(mockSession)
 }));
 
 describe('Agent A Integration - Task 14 Streaming API', () => {
@@ -59,8 +59,8 @@ describe('Agent A Integration - Task 14 Streaming API', () => {
 
     it('should reject requests without authentication', async () => {
       // Temporarily mock unauthenticated session
-      const { auth } = require('@/lib/auth');
-      auth.mockResolvedValueOnce(null);
+      const { auth } = await import('@/lib/auth');
+      (auth as any).mockResolvedValueOnce(null);
 
       const response = await fetch(`${API_BASE}/api/playground/stream`, {
         method: 'POST',

@@ -1,6 +1,6 @@
 'use server'
 
-import { getSupabaseClient, createSupabaseAdminClient } from '@/utils/supabase/server'
+import { createSupabaseAdminClient, createSupabaseSessionClient, createSupabaseAnonClient } from '@/utils/supabase/server'
 import { auth } from '@/lib/auth'
 import { Database } from '@/types/database.types'
 import { z } from 'zod'
@@ -43,6 +43,10 @@ type PromptWithRelations = PromptWithCategory & {
   forkCount?: number
   isFavorited?: boolean
   userVote?: 'up' | 'down' | null
+  // Add evaluation-related fields
+  average_evaluation_score: number | null
+  evaluation_count: number
+  last_evaluated_at: string | null
   profiles?: {
     id: string
     email: string | null
@@ -648,6 +652,10 @@ export async function fetchPromptById(id: number, userId?: string): Promise<Prom
         forkCount,
         isFavorited,
         userVote: userVote || null,
+        // Add evaluation fields with default values
+        average_evaluation_score: null,
+        evaluation_count: 0,
+        last_evaluated_at: null,
         profiles: profileData,
         forked_from: forkedFrom || undefined,
       }
@@ -782,6 +790,10 @@ export async function fetchPromptById(id: number, userId?: string): Promise<Prom
           forkCount,
           isFavorited,
           userVote: userVote || null,
+          // Add evaluation fields with default values
+          average_evaluation_score: null,
+          evaluation_count: 0,
+          last_evaluated_at: null,
           profiles: profileData,
           forked_from: forkedFrom || undefined,
         }
@@ -814,7 +826,7 @@ export async function createPrompt(input: z.infer<typeof createPromptSchema>) {
     }
     
     const validatedData = createPromptSchema.parse(input)
-    const supabase = await getSupabaseClient()
+    const supabase = createSupabaseAdminClient()
     
     // Separate forked_from from the main prompt data
     const { forked_from, ...promptDataWithoutFork } = validatedData
@@ -923,7 +935,7 @@ export async function updatePrompt(id: number, input: z.infer<typeof updatePromp
     }
     
     const validatedData = updatePromptSchema.parse(input)
-    const supabase = await getSupabaseClient()
+    const supabase = createSupabaseAdminClient()
     
     // Check ownership and get current data
     const { data: existingPrompt, error: fetchError } = await supabase
@@ -982,7 +994,7 @@ export async function deletePrompt(id: number) {
       throw new Error('Unauthorized: Must be logged in to delete prompts')
     }
     
-    const supabase = await getSupabaseClient()
+    const supabase = createSupabaseAdminClient()
     
     // Check ownership and get current data
     const { data: existingPrompt, error: fetchError } = await supabase
@@ -1221,7 +1233,7 @@ export async function toggleFavorite(promptId: number) {
       throw new Error('Unauthorized: Must be logged in to favorite prompts')
     }
     
-    const supabase = await getSupabaseClient()
+    const supabase = createSupabaseAdminClient()
     
     // Check if already favorited
     const { data: existing, error: checkError } = await supabase
@@ -1305,7 +1317,7 @@ export async function voteOnPrompt(promptId: number, voteType: 'up' | 'down') {
       throw new Error('Unauthorized: Must be logged in to vote on prompts')
     }
     
-    const supabase = await getSupabaseClient()
+    const supabase = createSupabaseAdminClient()
     
     // Check existing vote
     const { data: existing, error: checkError } = await supabase
@@ -1616,7 +1628,7 @@ export async function forkPrompt(promptId: number) {
     const userId = session.user.id
     console.log('Forking prompt:', promptId, 'for user:', userId)
     
-    const supabase = await getSupabaseClient()
+    const supabase = createSupabaseAdminClient()
     
     // First, fetch the original prompt
     const { data: originalPrompt, error: fetchError } = await supabase
@@ -1709,7 +1721,7 @@ export async function suggestImprovement(input: z.infer<typeof suggestImprovemen
     
     console.log('Suggesting improvement for prompt:', validatedData.prompt_id)
     
-    const supabase = await getSupabaseClient()
+    const supabase = createSupabaseAdminClient()
     
     // Check if prompt exists
     const { data: prompt, error: promptError } = await supabase
@@ -1823,7 +1835,7 @@ export async function reviewImprovement(input: z.infer<typeof reviewImprovementS
     
     console.log('Reviewing improvement:', validatedData.improvement_id)
     
-    const supabase = await getSupabaseClient()
+    const supabase = createSupabaseAdminClient()
     
     // Fetch the improvement and related prompt
     const { data: improvement, error: fetchError } = await supabase

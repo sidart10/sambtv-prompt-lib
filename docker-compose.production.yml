@@ -6,6 +6,7 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile.production
+    logging: *default-logging
     environment:
       - NODE_ENV=production
       - DATABASE_URL=${MAIN_DB_URL}
@@ -45,6 +46,7 @@ services:
     build: 
       context: ./sambatv-ai-platform
       dockerfile: Dockerfile
+    logging: *default-logging
     environment:
       - NODE_ENV=production
       - DATABASE_URL=${LANGFUSE_DB_URL}
@@ -86,6 +88,7 @@ services:
   # Load Balancer & SSL Termination
   nginx:
     image: nginx:alpine
+    logging: *default-logging
     ports:
       - "80:80"
       - "443:443"
@@ -117,6 +120,7 @@ services:
   # Dedicated Langfuse PostgreSQL Database (from Task 6)
   langfuse-postgres:
     image: postgres:15-alpine
+    logging: *default-logging
     container_name: langfuse-database
     environment:
       POSTGRES_DB: langfuse
@@ -150,6 +154,7 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
+    logging: *default-logging
     volumes:
       - redis-data:/data
       - ./config/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -176,6 +181,7 @@ services:
   # MinIO S3-Compatible Storage
   minio:
     image: minio/minio:latest
+    logging: *default-logging
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -234,7 +240,14 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/rules:/etc/prometheus/rules:ro
       - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
     networks:
       - sambatv-network
     restart: unless-stopped
@@ -253,9 +266,12 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
-      GF_INSTALL_PLUGINS: grafana-piechart-panel
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-sambatv2025}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-clock-panel
+      GF_SERVER_ROOT_URL: https://grafana.ai.sambatv.com
+      GF_SECURITY_ALLOW_EMBEDDING: true
     networks:
       - sambatv-network
     restart: unless-stopped
@@ -268,6 +284,94 @@ services:
         limits:
           memory: 256M
           cpus: '0.25'
+
+  # Alertmanager for notification routing
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager/config.yml:/etc/alertmanager/config.yml:ro
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - sambatv-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+
+  # Node Exporter for system metrics
+  node-exporter:
+    image: prom/node-exporter:latest
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host:ro
+    networks:
+      - sambatv-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+
+  # PostgreSQL Exporter for database metrics
+  postgres-exporter:
+    image: wrouesnel/postgres_exporter:latest
+    ports:
+      - "9187:9187"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:${LANGFUSE_DB_PASSWORD}@langfuse-postgres:5432/langfuse?sslmode=disable"
+    networks:
+      - sambatv-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    depends_on:
+      - langfuse-postgres
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+
+  # Redis Exporter for cache metrics
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    ports:
+      - "9121:9121"
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-sambatv_redis_2025}
+    networks:
+      - sambatv-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.05'
 
 volumes:
   app-data:
@@ -290,6 +394,8 @@ volumes:
     driver: local
   grafana-data:
     driver: local
+  alertmanager-data:
+    driver: local
 
 networks:
   sambatv-network:
@@ -305,18 +411,3 @@ x-logging: &default-logging
   options:
     max-size: "100m"
     max-file: "3"
-
-# Apply logging to all services
-services:
-  prompt-library:
-    logging: *default-logging
-  ai-platform:
-    logging: *default-logging
-  nginx:
-    logging: *default-logging
-  langfuse-postgres:
-    logging: *default-logging
-  redis:
-    logging: *default-logging
-  minio:
-    logging: *default-logging

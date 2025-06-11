@@ -92,10 +92,10 @@ services:
       SALT: "sambatv-salt-2025-secure"
       ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000" # Generate with: openssl rand -hex 32
       
-      # ClickHouse Analytics (temporarily disabled)
-      # CLICKHOUSE_URL: "http://sambatv:sambatv_clickhouse_2025@clickhouse:8123/sambatv_analytics"
-      # CLICKHOUSE_USER: sambatv
-      # CLICKHOUSE_PASSWORD: sambatv_clickhouse_2025
+      # ClickHouse Analytics (corrected URL format)
+      CLICKHOUSE_URL: "clickhouse://sambatv:sambatv_clickhouse_2025@clickhouse:9000/sambatv_analytics"
+      CLICKHOUSE_USER: sambatv
+      CLICKHOUSE_PASSWORD: sambatv_clickhouse_2025
       
       # Redis Cache
       REDIS_HOST: redis
@@ -124,6 +124,8 @@ services:
       redis:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      clickhouse:
         condition: service_healthy
     ports:
       - "3004:3000"  # Access at http://localhost:3004

@@ -12,7 +12,7 @@ const getTraceParamsSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { traceId: string } }
+  { params }: { params: Promise<{ traceId: string }> }
 ) {
   try {
     // Authenticate user
@@ -24,16 +24,17 @@ export async function GET(
       );
     }
 
+    // Await params for Next.js 15
+    const { traceId } = await params;
+
     // Validate trace ID
-    const validation = getTraceParamsSchema.safeParse(params);
+    const validation = getTraceParamsSchema.safeParse({ traceId });
     if (!validation.success) {
       return Response.json(
         { error: 'Invalid trace ID' },
         { status: 400 }
       );
     }
-
-    const { traceId } = validation.data;
 
     // Get trace data
     const trace = await TraceService.getTrace(traceId);

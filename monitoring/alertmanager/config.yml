@@ -1,0 +1,180 @@
+# Alertmanager Configuration for SambaTV AI Platform
+# Task 13: Comprehensive Monitoring & Alerts
+# Agent C Implementation
+
+global:
+  resolve_timeout: 5m
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+  smtp_from: 'alerts@ai.sambatv.com'
+  smtp_smarthost: 'smtp.samba.tv:587'
+  smtp_auth_username: '${SMTP_USERNAME}'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  smtp_require_tls: true
+
+# Alert routing tree
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+  
+  routes:
+    # Critical alerts go to all channels
+    - match:
+        severity: critical
+      receiver: critical-alerts
+      continue: true
+      routes:
+        # Database issues need immediate attention
+        - match:
+            component: database
+          receiver: database-oncall
+          repeat_interval: 5m
+        
+        # Security alerts to security team
+        - match:
+            team: security
+          receiver: security-team
+          
+    # Warning alerts to Slack and email
+    - match:
+        severity: warning
+      receiver: warning-alerts
+      group_wait: 5m
+      group_interval: 5m
+      repeat_interval: 4h
+      
+    # Cost alerts to finance team
+    - match:
+        component: cost
+      receiver: cost-alerts
+      group_wait: 30m
+      repeat_interval: 24h
+
+# Receiver definitions
+receivers:
+  # Default receiver (development/testing)
+  - name: 'default'
+    slack_configs:
+      - channel: '#ai-platform-dev'
+        title: 'AI Platform Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        send_resolved: true
+
+  # Critical alerts - all channels
+  - name: 'critical-alerts'
+    slack_configs:
+      - channel: '#ai-platform-alerts'
+        title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        text: |
+          *Alert:* {{ .GroupLabels.alertname }}
+          *Severity:* {{ .CommonLabels.severity }}
+          *Summary:* {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}
+          *Description:* {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
+          *Runbook:* {{ range .Alerts }}{{ .Annotations.runbook_url }}{{ end }}
+        color: 'danger'
+        send_resolved: true
+        actions:
+          - type: button
+            text: 'View in Grafana'
+            url: 'https://grafana.ai.sambatv.com/d/ai-platform-overview'
+          - type: button
+            text: 'Runbook'
+            url: '{{ range .Alerts }}{{ .Annotations.runbook_url }}{{ end }}'
+    
+    email_configs:
+      - to: 'ops@samba.tv,platform-oncall@samba.tv'
+        headers:
+          Subject: '[CRITICAL] {{ .GroupLabels.alertname }} - SambaTV AI Platform'
+        html: |
+          <h2>Critical Alert: {{ .GroupLabels.alertname }}</h2>
+          <p><strong>Severity:</strong> {{ .CommonLabels.severity }}</p>
+          <p><strong>Component:</strong> {{ .CommonLabels.component }}</p>
+          {{ range .Alerts }}
+          <hr>
+          <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
+          <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+          <p><strong>Runbook:</strong> <a href="{{ .Annotations.runbook_url }}">{{ .Annotations.runbook_url }}</a></p>
+          {{ end }}
+    
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_SERVICE_KEY}'
+        description: '{{ .GroupLabels.alertname }}: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        client: 'SambaTV AI Platform'
+        client_url: 'https://ai.sambatv.com'
+        details:
+          severity: '{{ .CommonLabels.severity }}'
+          component: '{{ .CommonLabels.component }}'
+          team: '{{ .CommonLabels.team }}'
+
+  # Warning alerts - Slack and email
+  - name: 'warning-alerts'
+    slack_configs:
+      - channel: '#ai-platform-alerts'
+        title: '⚠️ Warning: {{ .GroupLabels.alertname }}'
+        text: |
+          *Alert:* {{ .GroupLabels.alertname }}
+          *Summary:* {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}
+          *Description:* {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
+        color: 'warning'
+        send_resolved: true
+    
+    email_configs:
+      - to: 'platform-team@samba.tv'
+        headers:
+          Subject: '[WARNING] {{ .GroupLabels.alertname }} - SambaTV AI Platform'
+
+  # Database oncall
+  - name: 'database-oncall'
+    slack_configs:
+      - channel: '#database-alerts'
+        title: '🗄️ DATABASE CRITICAL: {{ .GroupLabels.alertname }}'
+        color: 'danger'
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_DATABASE_KEY}'
+        description: 'Database Critical: {{ .GroupLabels.alertname }}'
+
+  # Security team
+  - name: 'security-team'
+    slack_configs:
+      - channel: '#security-alerts'
+        title: '🔒 SECURITY: {{ .GroupLabels.alertname }}'
+        color: 'danger'
+    email_configs:
+      - to: 'security@samba.tv'
+
+  # Cost alerts
+  - name: 'cost-alerts'
+    slack_configs:
+      - channel: '#ai-platform-costs'
+        title: '💰 Cost Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          *Current Cost:* {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
+          *Action Required:* Review AI usage and optimize if needed
+        color: '#FF9900'
+    email_configs:
+      - to: 'platform-finance@samba.tv'
+        headers:
+          Subject: '[COST ALERT] AI Platform Usage - Action Required'
+
+# Inhibition rules
+inhibit_rules:
+  # Don't alert on component failures if the whole service is down
+  - source_match:
+      severity: 'critical'
+      alertname: 'ServiceDown'
+    target_match:
+      severity: 'warning'
+    equal: ['service', 'instance']
+    
+  # Don't alert on high resource usage if we're already alerting on service down
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      alertname: 'Container.*'
+    equal: ['instance']
+
+# Templates for notifications
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'

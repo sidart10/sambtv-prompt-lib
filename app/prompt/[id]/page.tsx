@@ -23,7 +23,7 @@ import { SimpleMarkdown } from "@/components/simple-markdown";
 import { PromptContentSection } from "@/components/prompt-content-section";
 import { ForkBadge } from "@/components/fork-badge";
 import { PromptDescriptionSection } from "@/components/prompt-description-section";
-import { TestInAIPlatformButton } from "@/components/test-in-ai-platform-button";
+
 import { PromptEvaluationDisplay } from "@/components/prompt-evaluation-display";
 
 export default async function PromptDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -184,11 +184,7 @@ export default async function PromptDetailPage({ params }: { params: Promise<{ i
                     className="w-full sm:w-auto"
                   />
                 )}
-                <TestInAIPlatformButton
-                  promptContent={prompt.content}
-                  promptId={promptId.toString()}
-                  className="w-full sm:w-auto"
-                />
+
               </div>
             </div>
           </div>
